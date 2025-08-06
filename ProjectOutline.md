@@ -25,24 +25,27 @@ We will create a parent directory with two subdirectories, one for each service.
 ```
 ai-expense-tracker-pro/
 ├── backend/
-│   ├── .env                  # Backend secrets (DB connection, LLM key)
-│   ├── main.py               # FastAPI application entry point
-│   ├── auth.py               # JWT token handling, password hashing
-│   ├── database.py           # Database models and interaction logic
-│   ├── llm.py                # LLM interaction logic
-│   ├── models.py             # Pydantic models for data validation
-│   └── requirements.txt      # Backend dependencies (fastapi, uvicorn, etc.)
+│   ├── .env                            # Backend secrets (Supabase DB key, LLM key)
+│   ├── main.py                         # FastAPI application entry point
+│   ├── database.py                     # Supabase DB CRUD API
+│   ├── llm.py                          # LLM Structure Output Logic
+│   └── models.py                       # Pydantic models for data validation
 │
 ├── draft/
-│   └── all trail script      # Backend dependencies (fastapi, uvicorn, etc.)
+│   └── all trial script
 │
 ├── frontend/
-│   ├── app.py                # The main Streamlit UI script
-│   ├── api_client.py         # Helper functions to call the backend API
-│   └── requirements.txt      # Frontend dependencies (streamlit, requests, etc.)
+│   ├── streamlit_page/
+│   │   ├── ai_bookkeeper_page.py       # User input frontend
+│   │   ├── transaction_history_page.py # User transaction viewing page
+│   │   └── user_setting_page.py        # User setting page
+│   │
+│   ├── app.py                          # The main Streamlit UI script
+│   └── api_client.py                   # Helper functions to call the backend API
 │
-├── .gitignore                # To ignore venv, __pycache__, .env files
-└── README.md                 # Overall project description
+├── requirements.txt                    # Frontend dependencies (streamlit, requests, etc.)
+├── .gitignore                          # To ignore venv, __pycache__, .env files
+└── README.md                           # Overall project description
 ```
 
 #### **Step 2: Build the Backend (FastAPI)**
