@@ -1,7 +1,7 @@
 # Ignore Python cache files
 *.ipynb_checkpoints
 *.venv
-__pycache__/
+*__pycache__/
 *.py[cod]
 *.python-version
 *uv.lock

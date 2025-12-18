@@ -6,4 +6,5 @@ pytest>=8.4.1
 python-dotenv>=1.1.1
 streamlit-image-button>=0.2.2.13
 streamlit>=1.47.1
+sqlalchemy>=2.0
 uvicorn>=0.35.0
