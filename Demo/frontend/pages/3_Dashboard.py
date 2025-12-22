@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
 from lib.api import get_transactions, ApiError
+import plotly.express as px
 
 st.title("Expense Tracker")
 st.header("Dashboard")
@@ -29,16 +30,33 @@ try:
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df["price"] = pd.to_numeric(df["price"], errors="coerce").fillna(0.0)
 
+    # Calculate totals
     income = df.loc[df["type"] == "income", "price"].sum()
     expense = df.loc[df["type"] == "expense", "price"].sum()
     net = income - expense
 
+    # Metrics
     c1, c2, c3 = st.columns(3)
     c1.metric("Total income", f"{income:,.2f}")
     c2.metric("Total expense", f"{expense:,.2f}")
     c3.metric("Net", f"{net:,.2f}")
 
-    st.subheader("Expense by category")
+    # Income vs Expense Proportion (Pie Chart)
+    st.subheader("Income vs Expense Proportion")
+    if income == 0 and expense == 0:
+        st.info("No transactions to display in pie chart.")
+    else:
+        pie_data = pd.DataFrame({
+            "Type": ["Income", "Expense"],
+            "Amount": [income, expense]
+        })
+        st.plotly_chart(
+            px.pie(pie_data, values="Amount", names="Type"),
+            use_container_width=True
+        )
+
+    # Expense by Category
+    st.subheader("Expense by Category")
     exp = df[df["type"] == "expense"].copy()
     if exp.empty:
         st.info("No expenses to group by category.")
@@ -46,7 +64,8 @@ try:
         by_cat = exp.groupby("category", dropna=False)["price"].sum().sort_values(ascending=False)
         st.bar_chart(by_cat)
 
-    st.subheader("Daily net (income - expense)")
+    # Daily Net
+    st.subheader("Daily Net (Income - Expense)")
     df["day"] = df["date"].dt.date
     daily = (
         df.pivot_table(index="day", columns="type", values="price", aggfunc="sum", fill_value=0.0)
@@ -54,6 +73,16 @@ try:
     )
     daily["net"] = daily.get("income", 0.0) - daily.get("expense", 0.0)
     st.line_chart(daily["net"])
+
+    # Monthly Net Trend
+    st.subheader("Monthly Net Trend")
+    df["month"] = df["date"].dt.to_period("M").astype(str)
+    monthly = (
+        df.pivot_table(index="month", columns="type", values="price", aggfunc="sum", fill_value=0.0)
+        .sort_index()
+    )
+    monthly["net"] = monthly.get("income", 0.0) - monthly.get("expense", 0.0)
+    st.line_chart(monthly["net"])
 
 except ApiError as e:
     st.error(f"API error: {e}")
