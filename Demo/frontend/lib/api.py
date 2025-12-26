@@ -47,3 +47,43 @@ def get_transactions(
         return r.json()
     except requests.RequestException as e:
         raise ApiError(str(e)) from e
+
+def add_asset_transaction(*, entry: Dict[str, Any], base_url: str, timeout_sec: int = 15) -> Dict[str, Any]:
+    url = _join(base_url, "/asset_transactions")
+    try:
+        r = requests.post(url, json=entry, timeout=timeout_sec)
+        if r.status_code != 200:
+            raise ApiError(f"{r.status_code} {r.text}")
+        return r.json()
+    except requests.RequestException as e:
+        raise ApiError(str(e)) from e
+
+def get_asset_transactions(
+    *, base_url: str, timeout_sec: int = 15, asset_type: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    url = _join(base_url, "/asset_transactions")
+    params: Dict[str, Any] = {}
+    if asset_type:
+        params["asset_type"] = asset_type
+    try:
+        r = requests.get(url, params=params, timeout=timeout_sec)
+        if r.status_code != 200:
+            raise ApiError(f"{r.status_code} {r.text}")
+        return r.json()
+    except requests.RequestException as e:
+        raise ApiError(str(e)) from e
+
+def get_asset_holdings(
+    *, base_url: str, timeout_sec: int = 15, asset_type: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    url = _join(base_url, "/asset_holdings")
+    params: Dict[str, Any] = {}
+    if asset_type:
+        params["asset_type"] = asset_type
+    try:
+        r = requests.get(url, params=params, timeout=timeout_sec)
+        if r.status_code != 200:
+            raise ApiError(f"{r.status_code} {r.text}")
+        return r.json()
+    except requests.RequestException as e:
+        raise ApiError(str(e)) from e

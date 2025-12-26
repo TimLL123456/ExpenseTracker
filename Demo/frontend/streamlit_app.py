@@ -9,6 +9,7 @@ pages = [
     st.Page("pages/2_History.py", title="History", icon=":material/history:"),
     st.Page("pages/3_Dashboard.py", title="Dashboard", icon=":material/dashboard:"),
     st.Page("pages/4_Settings.py", title="Settings", icon=":material/settings:"),
+    st.Page("pages/5_Portfolio.py", title="Portfolio", icon=":material/savings:"),
 ]
 
 pg = st.navigation(pages, position="sidebar", expanded=True)

@@ -9,9 +9,10 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date
+from sqlalchemy import create_engine, Column, Integer, String, Float, Date, func, case
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.sql import and_
+
 
 load_dotenv()
 
@@ -46,6 +47,18 @@ class Transaction(Base):
     description = Column(String, nullable=False)
     price = Column(Float, nullable=False)
 
+class AssetTransaction(Base):
+    __tablename__ = "asset_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False)
+    asset_type = Column(String, nullable=False)  # 'stock' or 'crypto'
+    symbol = Column(String, nullable=False)
+    name = Column(String)
+    quantity = Column(Float, nullable=False)
+    price = Column(Float, nullable=False)
+    action = Column(String, nullable=False)  # 'buy' or 'sell'
+    remarks = Column(String)
 
 Base.metadata.create_all(bind=engine)
 
@@ -61,6 +74,34 @@ class TransactionOut(BaseModel):
     category: str
     description: str
     price: float
+
+class AssetTransactionIn(BaseModel):
+    date: str  # YYYY-MM-DD
+    asset_type: str
+    symbol: str
+    name: Optional[str] = None
+    quantity: float
+    price: float
+    action: str
+    remarks: Optional[str] = None
+
+class AssetTransactionOut(BaseModel):
+    id: int
+    date: str
+    asset_type: str
+    symbol: str
+    name: Optional[str]
+    quantity: float
+    price: float
+    action: str
+    remarks: Optional[str]
+
+class AssetHoldingOut(BaseModel):
+    asset_type: str
+    symbol: str
+    name: Optional[str]
+    net_quantity: float
+    avg_buy_price: float
 
 
 def extract_with_llm(text: str) -> Dict[str, Any]:
@@ -188,6 +229,84 @@ def get_transactions(
                 description=r.description,
                 price=r.price,
             )
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+@app.post("/asset_transactions")
+def add_asset_transaction(entry: AssetTransactionIn):
+    try:
+        date_obj = datetime.datetime.strptime(entry.date, "%Y-%m-%d").date()
+        db = SessionLocal()
+        t = AssetTransaction(
+            date=date_obj,
+            asset_type=entry.asset_type,
+            symbol=entry.symbol.upper(),
+            name=entry.name,
+            quantity=entry.quantity,
+            price=entry.price,
+            action=entry.action,
+            remarks=entry.remarks,
+        )
+        db.add(t)
+        db.commit()
+        db.refresh(t)
+        return {"status": "success", "id": t.id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@app.get("/asset_transactions", response_model=List[AssetTransactionOut])
+def get_asset_transactions(asset_type: Optional[str] = Query(None)):
+    db = SessionLocal()
+    try:
+        query = db.query(AssetTransaction)
+        if asset_type:
+            query = query.filter(AssetTransaction.asset_type == asset_type)
+        rows = query.order_by(AssetTransaction.date.desc(), AssetTransaction.id.desc()).all()
+        return [
+            AssetTransactionOut(
+                id=r.id,
+                date=r.date.strftime("%Y-%m-%d"),
+                asset_type=r.asset_type,
+                symbol=r.symbol,
+                name=r.name,
+                quantity=r.quantity,
+                price=r.price,
+                action=r.action,
+                remarks=r.remarks,
+            )
+            for r in rows
+        ]
+    finally:
+        db.close()
+
+@app.get("/asset_holdings")
+def get_asset_holdings(asset_type: Optional[str] = Query(None)):
+    db = SessionLocal()
+    try:
+        query = db.query(
+            AssetTransaction.asset_type,
+            AssetTransaction.symbol,
+            func.max(AssetTransaction.name).label('name'),
+            func.sum(case((AssetTransaction.action == 'buy', AssetTransaction.quantity), else_=-AssetTransaction.quantity)).label('net_quantity'),
+            func.sum(case((AssetTransaction.action == 'buy', AssetTransaction.quantity * AssetTransaction.price), else_=0)).label('total_buy_cost'),
+            func.sum(case((AssetTransaction.action == 'buy', AssetTransaction.quantity), else_=0)).label('total_buy_qty')
+        ).group_by(AssetTransaction.asset_type, AssetTransaction.symbol)
+        if asset_type:
+            query = query.filter(AssetTransaction.asset_type == asset_type)
+        query = query.having(func.sum(case((AssetTransaction.action == 'buy', AssetTransaction.quantity), else_=-AssetTransaction.quantity)) > 0)
+        rows = query.all()
+        return [
+            {
+                'asset_type': r.asset_type,
+                'symbol': r.symbol,
+                'name': r.name,
+                'net_quantity': r.net_quantity,
+                'avg_buy_price': r.total_buy_cost / r.total_buy_qty if r.total_buy_qty > 0 else 0.0
+            }
             for r in rows
         ]
     finally:
